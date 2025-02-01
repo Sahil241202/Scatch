@@ -7,7 +7,10 @@ module.exports.registerUser = async function (req, res) {
         let {email, fullname, password} = req.body;
 
         let user = await userModel.findOne({email});
-        if(user) return res.status(401).send("You alreday have an account ,Please Login");
+        if(user) {
+            req.flash("error", "You already have an account, please login.");
+            return res.redirect('/');
+        }
 
         bcrypt.genSalt(10, function(err, salt) {
             bcrypt.hash(password, salt, async function(err, hash) {
@@ -20,12 +23,13 @@ module.exports.registerUser = async function (req, res) {
                     })
                     let token = generateToken(user);
                     res.cookie("token", token);
-                    return res.send("Account created successfully");
+                    return res.redirect('/shop');
                 }
             })
         })
     } catch (err) {
         console.error(err.message);
+        req.flash("error", "An error occurred. Please try again.");
         return res.redirect('/');
     }
 }
@@ -34,16 +38,25 @@ module.exports.loginUser = async function (req,res){
     let {email,password} = req.body;
     
     let user = await userModel.findOne({email: email});
-    if(!user) return res.status(401).send("Invalid email or password");
+    if (!user) {
+        req.flash("error", "Email or password incorrect.");
+        return res.redirect('/');
+    }
 
     bcrypt.compare(password,user.password,function(err,result){
         if(result){
             let token = generateToken(user);
             res.cookie("token", token);
-            return res.send("Login successful");
+            res.redirect('/shop')
         }
         else{
-            return res.status(401).send("Invalid email or password");
+            req.flash("error", "Email or password incorrect.");
+            return res.redirect('/');
         }
     });
 };
+
+module.exports.logout = function (req, res){
+    res.cookie("token","");
+    return res.redirect("/");
+}
